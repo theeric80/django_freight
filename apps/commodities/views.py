@@ -3,12 +3,13 @@ from django.http import Http404
 
 from rest_framework import mixins
 from rest_framework import generics
+from rest_framework import viewsets
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from apps.commodities import serializers
-from apps.commodities.models import TradePartner, Commodity
+from apps.commodities.models import TradePartner, Commodity, Inventory
 
 # using class-based views
 class TradePartnerList(APIView):
@@ -75,3 +76,16 @@ class CommodityList(mixins.ListModelMixin,
 class CommodityDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Commodity.objects.all()
     serializer_class = serializers.CommoditySerializer
+
+# Using ViewSets
+class InventoryViewSet(viewsets.ModelViewSet):
+    queryset = Inventory.objects.all()
+    serializer_class = serializers.InventorySerializer
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return serializers.InventoryListSerializer
+        elif self.action == 'create':
+            return serializers.InventoryCreateSerializer
+        else:
+            return self.serializer_class
