@@ -1,13 +1,16 @@
 from django.shortcuts import render
 from django.http import Http404
 
+from rest_framework import mixins
+from rest_framework import generics
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
 
 from apps.commodities import serializers
-from apps.commodities.models import TradePartner
+from apps.commodities.models import TradePartner, Commodity
 
+# using class-based views
 class TradePartnerList(APIView):
 
     def get(self, request):
@@ -50,3 +53,25 @@ class TradePartnerDetail(APIView):
         partner = self.get_object(pk)
         partner.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+# Using generic class-based views
+class CommodityList(mixins.ListModelMixin,
+                    mixins.CreateModelMixin,
+                    generics.GenericAPIView):
+    queryset = Commodity.objects.all()
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == 'get':
+            return serializers.CommodityListSerializer
+        else:
+            return serializers.CommoditySerializer
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+class CommodityDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Commodity.objects.all()
+    serializer_class = serializers.CommoditySerializer
