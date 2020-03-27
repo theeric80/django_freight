@@ -1,24 +1,45 @@
 from django.shortcuts import render
 from django.http import Http404
+from django.core.paginator import Paginator, EmptyPage
 
 from rest_framework import mixins
 from rest_framework import generics
+from rest_framework import views
 from rest_framework import viewsets
 from rest_framework import status
-from rest_framework.views import APIView
+from rest_framework import pagination
 from rest_framework.response import Response
 
 from apps.commodities import serializers
 from apps.commodities.models import TradePartner, Commodity, Inventory
 
-# using class-based views
-class TradePartnerList(APIView):
+# Pagination
+class LinkHeaderPagination(pagination.BasePagination):
+
+    def paginate_queryset(self, queryset, request, view=None):
+        page_num = request.query_params.get('page', 1)
+        page_size = request.query_params.get('page_size', 20)
+
+        try:
+            self.page = Paginator(queryset, page_size).page(page_num)
+            self.request = request
+        except EmptyPage:
+            raise Http404
+
+        return self.page.object_list
+
+    def get_paginated_response(self, data):
+        return Response(data)
+
+# Using class-based views
+class TradePartnerList(views.APIView):
+    queryset = TradePartner.objects.all()
 
     def get(self, request):
-        # TODO: pagination
-        partners = TradePartner.objects.all()
+        paginator = LinkHeaderPagination()
+        partners = paginator.paginate_queryset(self.queryset, request)
         serializer = serializers.TradePartnerListSerializer(partners, many=True)
-        return Response(serializer.data)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         serializer = serializers.TradePartnerSerializer(data=request.data)
@@ -28,22 +49,24 @@ class TradePartnerList(APIView):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class TradePartnerDetail(APIView):
+class TradePartnerDetail(views.APIView):
+    queryset = TradePartner.objects.all()
+    serializer_class = serializers.TradePartnerSerializer
 
     def get_object(self, pk):
         try:
-            return TradePartner.objects.get(pk=pk)
+            return self.queryset.get(pk=pk)
         except TradePartner.DoesNotExist:
             raise Http404
 
     def get(self, request, pk):
         partner = self.get_object(pk)
-        serializer = serializers.TradePartnerSerializer(partner)
+        serializer = self.serializer_class(partner)
         return Response(serializer.data)
 
     def put(self, request, pk):
         partner = self.get_object(pk)
-        serializer = serializers.TradePartnerSerializer(partner, data=request.data)
+        serializer = self.serializer_class(partner, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
