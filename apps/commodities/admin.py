@@ -14,3 +14,7 @@ class CommodityAdmin(admin.ModelAdmin):
 @admin.register(models.Inventory)
 class InventoryAdmin(admin.ModelAdmin):
     pass
+
+@admin.register(models.InventoryHistory)
+class InventoryHistoryAdmin(admin.ModelAdmin):
+    pass
