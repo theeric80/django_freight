@@ -13,6 +13,7 @@ from rest_framework.settings import api_settings
 from rest_framework.utils.urls import replace_query_param
 
 from apps.commodities import serializers
+from apps.commodities import signals
 from apps.commodities.models import TradePartner, Commodity, Inventory
 
 # Pagination
@@ -167,3 +168,22 @@ class InventoryViewSet(viewsets.ModelViewSet):
             return serializers.InventoryCreateSerializer
         else:
             return self.serializer_class
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        user = self.request.user
+
+        # TODO: replace custom signal with explicit function call
+        # https://docs.djangoproject.com/en/3.0/topics/signals/#defining-and-sending-signals
+        signals.inventory_saved.send(sender=Inventory, instance=instance, user=user, created=True)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        user = self.request.user
+        signals.inventory_saved.send(sender=Inventory, instance=instance, user=user, created=False)
+
+    def perform_destroy(self, instance):
+        pk=instance.id
+        instance.delete()
+        user = self.request.user
+        signals.inventory_deleted.send(sender=Inventory, pk=pk, instance=instance, user=user)
