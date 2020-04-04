@@ -11,11 +11,12 @@ from rest_framework import status
 from rest_framework import pagination
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from rest_framework.decorators import action
 from rest_framework.utils.urls import replace_query_param
 
 from apps.commodities import serializers
 from apps.commodities import signals
-from apps.commodities.models import TradePartner, Commodity, Inventory
+from apps.commodities.models import TradePartner, Commodity, Inventory, InventoryHistory
 
 # Pagination
 class LinkHeaderPagination(pagination.BasePagination):
@@ -192,3 +193,10 @@ class InventoryViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             instance.delete()
             signals.inventory_deleted.send(sender=Inventory, pk=pk, instance=instance, user=user)
+
+    @action(detail=False, methods=['get'])
+    def history(self, request, *args, **kwargs):
+        queryset = InventoryHistory.objects.all()
+        instance = self.paginate_queryset(queryset)
+        serializer = serializers.InventoryHistorySerializer(instance, many=True)
+        return self.get_paginated_response(serializer.data)

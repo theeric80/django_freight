@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.commodities.models import TradePartner, Commodity, Inventory
+from apps.commodities.models import TradePartner, Commodity, Inventory, InventoryHistory
 
 class TradePartnerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -41,3 +41,8 @@ class InventoryListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Inventory
         fields = ['id', 'type', 'quantity', 'commodity_name']
+
+class InventoryHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryHistory
+        exclude = ['inventory', 'user']
