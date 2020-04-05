@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.http import Http404
 from django.core.paginator import Paginator, EmptyPage
 from django.db import transaction
-from django.db.models import F, Sum, Case, When, Value
+from django.db.models import F, Q, Sum, Case, When, Value
 from django.db.models.functions import Coalesce
 
 from rest_framework import mixins
@@ -19,6 +19,11 @@ from rest_framework.utils.urls import replace_query_param
 from apps.commodities import serializers
 from apps.commodities import signals
 from apps.commodities.models import TradePartner, Commodity, Inventory, InventoryHistory
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 # Pagination
 class LinkHeaderPagination(pagination.BasePagination):
@@ -209,7 +214,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
           END), 0) AS "shipping_quantity",
           COALESCE(SUM(CASE
             WHEN "commodities_inventory"."type" = 2 THEN "commodities_inventory"."quantity"
-            ELSE 0
+            ELSE NULL
           END), 0) AS "receiving_quantity"
         FROM "commodities_inventory"
         INNER JOIN "commodities_commodity"
@@ -223,10 +228,10 @@ class InventoryViewSet(viewsets.ModelViewSet):
             .annotate(commodity_name = F('commodity__name')) \
             .annotate(total_quantity = Coalesce(Sum(F('quantity')),  Value(0))) \
             .annotate(shipping_quantity = Coalesce(Sum(Case(When(type=Inventory.Type.SHIPPING, then=F('quantity')), default=0)), Value(0))) \
-            .annotate(receiving_quantity = Coalesce(Sum(Case(When(type=Inventory.Type.RECEIVING, then=F('quantity')), default=0)), Value(0))) \
+            .annotate(receiving_quantity = Coalesce(Sum(F('quantity'), filter=Q(type=Inventory.Type.RECEIVING)), Value(0))) \
             .order_by('commodity')
 
-        #print(queryset.query)
+        logger.debug(queryset.query)
 
         instance = self.paginate_queryset(queryset)
         serializer = serializers.InventorySummarySerializer(instance, many=True)
