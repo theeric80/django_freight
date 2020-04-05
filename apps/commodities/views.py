@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import Http404
 from django.core.paginator import Paginator, EmptyPage
+from django.db import transaction
 
 from rest_framework import mixins
 from rest_framework import generics
@@ -169,6 +170,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
         else:
             return self.serializer_class
 
+    @transaction.atomic
     def perform_create(self, serializer):
         instance = serializer.save()
         user = self.request.user
@@ -177,6 +179,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
         # https://docs.djangoproject.com/en/3.0/topics/signals/#defining-and-sending-signals
         signals.inventory_saved.send(sender=Inventory, instance=instance, user=user, created=True)
 
+    @transaction.atomic
     def perform_update(self, serializer):
         instance = serializer.save()
         user = self.request.user
@@ -184,6 +187,8 @@ class InventoryViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         pk=instance.id
-        instance.delete()
         user = self.request.user
-        signals.inventory_deleted.send(sender=Inventory, pk=pk, instance=instance, user=user)
+
+        with transaction.atomic():
+            instance.delete()
+            signals.inventory_deleted.send(sender=Inventory, pk=pk, instance=instance, user=user)
