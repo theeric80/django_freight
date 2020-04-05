@@ -42,6 +42,13 @@ class InventoryListSerializer(serializers.ModelSerializer):
         model = Inventory
         fields = ['id', 'type', 'quantity', 'commodity_name']
 
+class InventorySummarySerializer(serializers.Serializer):
+    commodity_id = serializers.IntegerField(source='commodity', min_value=1)
+    commodity_name = serializers.CharField()
+    total_quantity = serializers.IntegerField(min_value=0)
+    shipping_quantity = serializers.IntegerField(min_value=0)
+    receiving_quantity = serializers.IntegerField(min_value=0)
+
 class InventoryHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = InventoryHistory
