@@ -45,9 +45,13 @@ class InventoryHistory(models.Model):
     type = models.IntegerField(choices=Inventory.Type.choices)
     quantity =  models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
-    inventory = models.ForeignKey(Inventory, null=True, on_delete=models.SET_NULL)
+    inventory = models.ForeignKey(Inventory, db_index=False, null=True, on_delete=models.SET_NULL)
     user = models.ForeignKey(get_user_model(), null=True, on_delete=models.SET_NULL)
 
     class Meta:
         db_table = 'commodities_inventory_history'
         ordering = ['id']
+        indexes = [
+            models.Index(fields=['created_at']),
+            models.Index(fields=['inventory', 'created_at']),
+        ]
