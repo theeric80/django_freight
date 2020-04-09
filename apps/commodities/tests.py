@@ -1,10 +1,13 @@
 from django.test import TestCase
 from django.urls import reverse
+from django.http import Http404
 
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.settings import api_settings
+from rest_framework.test import APIRequestFactory, APISimpleTestCase, APITestCase
 
 from apps.users.models import User
+from apps.commodities.views import LinkHeaderPagination
 from apps.commodities.models import Commodity, Inventory, InventoryHistory
 
 # Create your tests here.
@@ -208,3 +211,104 @@ class InventoryViewSetTestCase(APITestCase):
     def assert_inventory_history_match(self, history, action, user):
         self.assertEqual(history.action, action)
         self.assertEqual(history.user, user)
+
+class LinkHeaderPaginationTestCase(APISimpleTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+        cls.factory = APIRequestFactory()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+
+    def setUp(self):
+        super().setUp()
+
+    def tearDown(self):
+        super().tearDown()
+
+    def test_get_link(self):
+        # Given
+        url, page, size, rel = '/api/pages/', 0, 30, 'next'
+        request = self.factory.get(url)
+        queryset = [1]
+        expected = '<http://testserver{}?page={}&page_size={}>; rel="{}"'.format(
+            url, page, size, rel)
+
+        # When
+        paginator = LinkHeaderPagination()
+        paginator.paginate_queryset(queryset, request)
+        link = paginator.get_link(page, size, rel)
+
+        # Then
+        self.assertEqual(link, expected)
+
+    def test_paginate_queryset_empty_page(self):
+        # Given
+        page, page_size, url = 2, api_settings.PAGE_SIZE, '/api/pages/'
+        request = self.factory.get(url, {'page': page})
+        queryset = [1]
+
+        # When
+        with self.assertRaises(Http404):
+            paginator = LinkHeaderPagination()
+            paginator.paginate_queryset(queryset, request)
+
+    def test_get_paginated_response_first_page(self):
+        # Given
+        page_size, url = api_settings.PAGE_SIZE, '/api/pages/'
+        request = self.factory.get(url)
+        queryset = list(range(page_size + 1))
+        expected = queryset[:page_size]
+
+        # When
+        paginator = LinkHeaderPagination()
+        data = paginator.paginate_queryset(queryset, request)
+        response = paginator.get_paginated_response(data)
+
+        # Then
+        self.assertListEqual(response.data, expected)
+        self.assertIn('rel=\"next\"', response['Link'])
+        self.assertIn('rel=\"last\"', response['Link'])
+        self.assertNotIn('rel=\"first\"', response['Link'])
+        self.assertNotIn('rel=\"prev\"', response['Link'])
+
+    def test_get_paginated_response_middle_page(self):
+        # Given
+        page, page_size, url = 2, 5, '/api/pages/'
+        request = self.factory.get(url, {'page': page, 'page_size': page_size})
+        queryset = list(range(page_size * 3))
+        expected = queryset[page_size:page_size+page_size]
+
+        # When
+        paginator = LinkHeaderPagination()
+        data = paginator.paginate_queryset(queryset, request)
+        response = paginator.get_paginated_response(data)
+
+        # Then
+        self.assertListEqual(response.data, expected)
+        self.assertIn('rel=\"next\"', response['Link'])
+        self.assertIn('rel=\"last\"', response['Link'])
+        self.assertIn('rel=\"first\"', response['Link'])
+        self.assertIn('rel=\"prev\"', response['Link'])
+
+    def test_get_paginated_response_last_page(self):
+        # Given
+        page, page_size, url = 2, api_settings.PAGE_SIZE, '/api/pages/'
+        request = self.factory.get(url, {'page': page})
+        queryset = list(range(page_size + 1))
+        expected = queryset[page_size:]
+
+        # When
+        paginator = LinkHeaderPagination()
+        data = paginator.paginate_queryset(queryset, request)
+        response = paginator.get_paginated_response(data)
+
+        # Then
+        self.assertListEqual(response.data, expected)
+        self.assertNotIn('rel=\"next\"', response['Link'])
+        self.assertNotIn('rel=\"last\"', response['Link'])
+        self.assertIn('rel=\"first\"', response['Link'])
+        self.assertIn('rel=\"prev\"', response['Link'])

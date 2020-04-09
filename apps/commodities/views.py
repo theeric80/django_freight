@@ -32,8 +32,8 @@ class LinkHeaderPagination(pagination.BasePagination):
     page_size_query_param = 'page_size'
 
     def paginate_queryset(self, queryset, request, view=None):
-        page_num = request.query_params.get(self.page_query_param, 1)
-        page_size = request.query_params.get(self.page_size_query_param, self.page_size) or 30
+        page_num = request.GET.get(self.page_query_param, 1)
+        page_size = request.GET.get(self.page_size_query_param, self.page_size) or 30
 
         try:
             self.page = Paginator(queryset, page_size).page(page_num)
