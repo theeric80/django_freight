@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_extensions',
+    'debug_toolbar',
     'rest_framework',
     'rest_framework.authtoken',
     'apps.users.apps.UsersConfig',
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -73,6 +75,10 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'django_freight.wsgi.application'
+
+INTERNAL_IPS = [
+    '127.0.0.1',
+]
 
 
 # Database
