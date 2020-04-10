@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_extensions',
     'rest_framework',
     'rest_framework.authtoken',
     'apps.users.apps.UsersConfig',
@@ -157,6 +158,10 @@ LOGGING = {
         },
     },
 }
+
+# django-extensions
+# https://django-extensions.readthedocs.io/en/latest/index.html
+SHELL_PLUS_PRINT_SQL = True
 
 # REST framework
 # https://www.django-rest-framework.org/api-guide/settings/
