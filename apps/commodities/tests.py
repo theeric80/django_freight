@@ -2,17 +2,17 @@ from django.test import TestCase
 from django.urls import reverse
 from django.http import Http404
 
+from model_bakery import baker
+
 from rest_framework import status
 from rest_framework.settings import api_settings
 from rest_framework.test import APIRequestFactory, APISimpleTestCase, APITestCase
 
-from apps.users.models import User
 from apps.commodities.views import LinkHeaderPagination
-from apps.commodities.models import Commodity, Inventory, InventoryHistory
+from apps.commodities.models import Inventory, InventoryHistory
 
 # Create your tests here.
 class InventoryViewSetTestCase(APITestCase):
-    username = 'lauren'
 
     @classmethod
     def setUpClass(cls):
@@ -28,20 +28,7 @@ class InventoryViewSetTestCase(APITestCase):
     def setUpTestData(cls):
         super().setUpTestData()
 
-        cls.user = User.objects.create(username=cls.username)
-
-        c1 = Commodity.objects.create(name='test_commodity_1')
-        c2 = Commodity.objects.create(name='test_commodity_2')
-        cls.commodity = c1
-
-        shipping = Inventory.Type.SHIPPING
-        receiving = Inventory.Type.RECEIVING
-        cls.inventories = [
-            Inventory.objects.create(type=shipping,  quantity=1, commodity=c1),
-            Inventory.objects.create(type=receiving, quantity=2, commodity=c1),
-            Inventory.objects.create(type=shipping,  quantity=3, commodity=c2),
-            Inventory.objects.create(type=receiving, quantity=4, commodity=c2),
-        ]
+        cls.user = baker.make_recipe('apps.users.user')
 
     def setUp(self):
         super().setUp()
@@ -52,25 +39,26 @@ class InventoryViewSetTestCase(APITestCase):
         super().tearDown()
 
     def test_list_view(self):
-        #When
+        # Given
+        expected_count = 3
+        inventories = baker.make_recipe('apps.commodities.inventory', _quantity = expected_count)
+
+        # When
         url = reverse('inventory-list')
         response = self.client.get(url)
 
         # Then
         expected_fields = ['id', 'type', 'quantity', 'commodity_name']
-        expected_count = len(self.inventories)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['count'], expected_count)
 
         for i, data in enumerate(response.data['results']):
-            expected = self.inventories[i]
+            expected = inventories[i]
 
             self.assertCountEqual(data.keys(), expected_fields)
 
             self.assertEqual(data['id'], expected.pk)
-            self.assertEqual(data['type'], expected.type)
-            self.assertEqual(data['quantity'], expected.quantity)
             self.assertEqual(data['commodity_name'], expected.commodity.name)
 
     def test_create_view(self):
@@ -78,7 +66,7 @@ class InventoryViewSetTestCase(APITestCase):
         expected = {
             'type': Inventory.Type.SHIPPING,
             'quantity': 1,
-            'commodity': self.commodity.pk,
+            'commodity': baker.make_recipe('apps.commodities.commodity').pk,
         }
 
         # When
@@ -102,7 +90,7 @@ class InventoryViewSetTestCase(APITestCase):
 
     def test_retrieve_view(self):
         # Given
-        expected = self.inventories[0]
+        expected = baker.make_recipe('apps.commodities.inventory')
 
         # When
         url = reverse('inventory-detail', args=[expected.pk])
@@ -114,16 +102,11 @@ class InventoryViewSetTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertCountEqual(data.keys(), expected_fields)
+        self.assertEqual(data['id'], expected.pk)
 
     def test_update_view(self):
         # Given
-        fields = {
-            'type': Inventory.Type.SHIPPING,
-            'quantity': 1,
-            'commodity': self.commodity,
-        }
-        inventory = Inventory.objects.create(**fields)
-
+        inventory = baker.make_recipe('apps.commodities.inventory')
         expected = {
             'type': Inventory.Type.RECEIVING,
             'quantity': 2
@@ -150,12 +133,7 @@ class InventoryViewSetTestCase(APITestCase):
 
     def test_destroy_view(self):
         # Given
-        fields = {
-            'type': Inventory.Type.SHIPPING,
-            'quantity': 1,
-            'commodity': self.commodity,
-        }
-        inventory = Inventory.objects.create(**fields)
+        inventory = baker.make_recipe('apps.commodities.inventory')
 
         # When
         url = reverse('inventory-detail', args=[inventory.pk])
@@ -170,6 +148,18 @@ class InventoryViewSetTestCase(APITestCase):
             history, InventoryHistory.Action.DELETE, self.user)
 
     def test_summary_view(self):
+        # Given
+        shipping = Inventory.Type.SHIPPING
+        receiving = Inventory.Type.RECEIVING
+
+        c1 = baker.make_recipe('apps.commodities.commodity')
+        c2 = baker.make_recipe('apps.commodities.commodity')
+
+        baker.make_recipe('apps.commodities.inventory', type=shipping,  quantity=1, commodity=c1)
+        baker.make_recipe('apps.commodities.inventory', type=receiving, quantity=2, commodity=c1)
+        baker.make_recipe('apps.commodities.inventory', type=shipping,  quantity=3, commodity=c2)
+        baker.make_recipe('apps.commodities.inventory', type=receiving, quantity=4, commodity=c2)
+
         # When
         url = reverse('inventory-summary')
         response = self.client.get(url)
