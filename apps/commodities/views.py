@@ -220,18 +220,14 @@ class InventoryViewSet(viewsets.ModelViewSet):
         INNER JOIN "commodities_commodity"
           ON ("commodities_inventory"."commodity_id" = "commodities_commodity"."id")
         GROUP BY "commodities_inventory"."commodity_id",
-                 "commodities_commodity"."name",
-                 "commodities_commodity"."id"
-        ORDER BY "commodities_commodity"."id" ASC
+                 "commodities_commodity"."name"
         """
         queryset = Inventory.objects.values('commodity') \
             .annotate(commodity_name = F('commodity__name')) \
             .annotate(total_quantity = Coalesce(Sum(F('quantity')),  Value(0))) \
             .annotate(shipping_quantity = Coalesce(Sum(Case(When(type=Inventory.Type.SHIPPING, then=F('quantity')), default=0)), Value(0))) \
             .annotate(receiving_quantity = Coalesce(Sum(F('quantity'), filter=Q(type=Inventory.Type.RECEIVING)), Value(0))) \
-            .order_by('commodity')
-
-        logger.debug(queryset.query)
+            .order_by()
 
         instance = self.paginate_queryset(queryset)
         serializer = serializers.InventorySummarySerializer(instance, many=True)

@@ -128,6 +128,36 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+# Logging
+# https://docs.djangoproject.com/en/3.0/topics/logging/
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '{asctime} {levelname} - {message}',
+            'style': '{',
+        },
+        'verbose': {
+            'format': '{asctime} {levelname} {process:d} {thread:d} {name} - {message}',
+            'style': '{',
+        }
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple'
+        },
+    },
+    'loggers': {
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
+
 # REST framework
 # https://www.django-rest-framework.org/api-guide/settings/
 REST_FRAMEWORK = {
