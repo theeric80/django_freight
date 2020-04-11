@@ -3,3 +3,4 @@ django-extensions==2.2.9
 django-debug-toolbar==2.2
 djangorestframework==3.11.0
 model-bakery==1.1.0
+prettytable==0.7.2
