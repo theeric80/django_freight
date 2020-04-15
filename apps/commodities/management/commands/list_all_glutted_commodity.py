@@ -1,8 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from django.db.models import F, Sum, Value
-from django.db.models.functions import Coalesce
-
 from prettytable import PrettyTable
 
 from apps.commodities.models import Inventory
@@ -22,10 +19,7 @@ class Command(BaseCommand):
         if quantity < 0:
             raise CommandError('Negavite quantity Value')
 
-        glutted_commodities = Inventory.objects.values('commodity') \
-            .annotate(total_quantity = Coalesce(Sum(F('quantity')), Value(0))) \
-            .filter(total_quantity__gte=quantity) \
-            .order_by('-total_quantity') \
+        glutted_commodities = Inventory.objects.list_glutted_commodities(quantity) \
             .values_list('commodity__id', 'commodity__name', 'total_quantity')
 
 

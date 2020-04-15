@@ -2,8 +2,6 @@ from django.shortcuts import render
 from django.http import Http404
 from django.core.paginator import Paginator, EmptyPage
 from django.db import transaction
-from django.db.models import F, Q, Sum, Case, When, Value
-from django.db.models.functions import Coalesce
 
 from rest_framework import mixins
 from rest_framework import generics
@@ -203,31 +201,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def summary(self, request, *args, **kwargs):
-        """
-        SELECT
-          "commodities_inventory"."commodity_id",
-          "commodities_commodity"."name" AS "commodity_name",
-          COALESCE(SUM("commodities_inventory"."quantity"), 0) AS "total_quantity",
-          COALESCE(SUM(CASE
-            WHEN "commodities_inventory"."type" = 1 THEN "commodities_inventory"."quantity"
-            ELSE 0
-          END), 0) AS "shipping_quantity",
-          COALESCE(SUM(CASE
-            WHEN "commodities_inventory"."type" = 2 THEN "commodities_inventory"."quantity"
-            ELSE NULL
-          END), 0) AS "receiving_quantity"
-        FROM "commodities_inventory"
-        INNER JOIN "commodities_commodity"
-          ON ("commodities_inventory"."commodity_id" = "commodities_commodity"."id")
-        GROUP BY "commodities_inventory"."commodity_id",
-                 "commodities_commodity"."name"
-        """
-        queryset = Inventory.objects.values('commodity') \
-            .annotate(commodity_name = F('commodity__name')) \
-            .annotate(total_quantity = Coalesce(Sum(F('quantity')),  Value(0))) \
-            .annotate(shipping_quantity = Coalesce(Sum(Case(When(type=Inventory.Type.SHIPPING, then=F('quantity')), default=0)), Value(0))) \
-            .annotate(receiving_quantity = Coalesce(Sum(F('quantity'), filter=Q(type=Inventory.Type.RECEIVING)), Value(0))) \
-            .order_by()
+        queryset = Inventory.objects.summarize()
 
         instance = self.paginate_queryset(queryset)
         serializer = serializers.InventorySummarySerializer(instance, many=True)

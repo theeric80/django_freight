@@ -1,5 +1,37 @@
 from django.db import models
+from django.db.models import F, Q, Sum, Case, When, Value as V
+from django.db.models.functions import Coalesce
 from django.contrib.auth import get_user_model
+
+
+# Create your managers here.
+class InventoryQuerySet(models.QuerySet):
+
+    def shipping(self):
+        return self.filter(type__exact=Inventory.Type.SHIPPING)
+
+    def receiving(self):
+        return self.filter(type__exact=Inventory.Type.RECEIVING)
+
+class InventoryManager(models.Manager):
+
+    def summarize(self):
+        SHIPPING = Inventory.Type.SHIPPING
+        RECEIVING = Inventory.Type.RECEIVING
+
+        return self.values('commodity') \
+            .annotate(commodity_name = F('commodity__name')) \
+            .annotate(total_quantity = Coalesce(Sum('quantity'),  V(0))) \
+            .annotate(shipping_quantity = Coalesce(Sum(Case(When(type=SHIPPING, then=F('quantity')), default=0)), V(0))) \
+            .annotate(receiving_quantity = Coalesce(Sum('quantity', filter=Q(type=RECEIVING)), V(0))) \
+            .order_by()
+
+    def list_glutted_commodities(self, quantity):
+        return self.values('commodity') \
+            .annotate(total_quantity = Coalesce(Sum('quantity'), V(0))) \
+            .filter(total_quantity__gte=quantity) \
+            .order_by('-total_quantity')
+
 
 # Create your models here.
 class TradePartner(models.Model):
@@ -28,6 +60,7 @@ class Inventory(models.Model):
     quantity =  models.PositiveIntegerField()
     commodity = models.ForeignKey(Commodity, on_delete=models.CASCADE)
     trade_partner = models.ForeignKey(TradePartner, null=True, on_delete=models.SET_NULL)
+    objects = InventoryManager.from_queryset(InventoryQuerySet)()
 
     class Meta:
         db_table = 'commodities_inventory'
